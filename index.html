@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HBD Mom - Photo Booth & Decorate</title>
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;600&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        :root { --red: #d32f2f; --white: #ffffff; }
+        body { font-family: 'Kanit', sans-serif; background-color: #fff5f5; color: var(--red); margin: 0; text-align: center; }
+        .container { display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 10px; }
+        .card { background: white; padding: 20px; border-radius: 25px; border: 4px solid var(--red); box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 100%; max-width: 450px; position: relative; }
+        .hidden { display: none !important; }
+        
+        button { padding: 10px 20px; border: none; border-radius: 50px; cursor: pointer; font-family: 'Kanit'; font-weight: 600; transition: 0.3s; margin: 5px; }
+        .btn-red { background: var(--red); color: white; }
+        .btn-outline { background: white; color: var(--red); border: 2px solid var(--red); }
+
+        /* Camera Area */
+        #video-container { position: relative; width: 100%; border-radius: 15px; overflow: hidden; background: #000; border: 3px solid var(--red); margin-bottom: 10px; }
+        video { width: 100%; transform: scaleX(-1); display: block; }
+        #countdown { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 70px; color: white; font-weight: bold; }
+
+        /* Photo Strip (The Result) */
+        .photo-strip { background: var(--red); padding: 15px; display: inline-block; position: relative; }
+        .strip-grid { display: grid; grid-template-rows: repeat(4, 1fr); gap: 8px; }
+        .strip-item { position: relative; width: 180px; height: 135px; background: #eee; overflow: hidden; }
+        .strip-item img { width: 100%; height: 100%; object-fit: cover; }
+        
+        /* Decoration Tools */
+        .sticker-box { display: flex; justify-content: center; gap: 10px; margin: 10px 0; font-size: 30px; }
+        .sticker { cursor: pointer; transition: 0.2s; }
+        .sticker:hover { transform: scale(1.2); }
+        .placed-sticker { position: absolute; cursor: move; user-select: none; font-size: 40px; }
+
+        .qr-area { display: flex; justify-content: space-around; margin-top: 15px; background: #f9f9f9; padding: 10px; border-radius: 10px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div id="booth-start" class="card">
+        <h2 class="bounce">📸 ตู้นี้เพื่อคุณแม่</h2>
+        <p>ถ่ายรูป 4 ช็อตสุดน่ารัก <br>สวยไม่พอ... ถ่ายใหม่ได้จนกว่าจะพอใจ!</p>
+        <div style="font-size: 50px;">🐰✨</div>
+        <button class="btn-red" onclick="startCamera()">เปิดกล้องเลย</button>
+    </div>
+
+    <div id="booth-capture" class="card hidden">
+        <div id="video-container">
+            <video id="webcam" autoplay playsinline></video>
+            <div id="countdown"></div>
+        </div>
+        <p id="shot-info">เตรียมโพสต์ท่านะคะ</p>
+        <button class="btn-red" id="start-snap-btn" onclick="takeFourShots()">กดเพื่อเริ่มนับถอยหลัง</button>
+    </div>
+
+    <div id="booth-preview" class="card hidden">
+        <h3>รูปสวยไหมคะ? 😍</h3>
+        <div id="preview-area" class="photo-strip" style="transform: scale(0.8);">
+            <div class="strip-grid" id="preview-grid"></div>
+        </div>
+        <br>
+        <button class="btn-outline" onclick="startCamera()">ถ่ายใหม่ (Retake)</button>
+        <button class="btn-red" onclick="goToDecorate()">สวยแล้ว! ไปแต่งรูปกัน</button>
+    </div>
+
+    <div id="booth-decorate" class="card hidden">
+        <h3>จิ้มสติกเกอร์เพื่อวางบนรูป 🎀</h3>
+        <div class="sticker-box">
+            <span class="sticker" onclick="addSticker('❤️')">❤️</span>
+            <span class="sticker" onclick="addSticker('💖')">💖</span>
+            <span class="sticker" onclick="addSticker('✨')">✨</span>
+            <span class="sticker" onclick="addSticker('🎂')">🎂</span>
+            <span class="sticker" onclick="addSticker('🐰')">🐰</span>
+        </div>
+        
+        <div id="decorate-area" class="photo-strip">
+            <div class="strip-grid" id="decorate-grid"></div>
+        </div>
+        
+        <p style="font-size: 0.8rem; color: #888;">*กดที่สติกเกอร์บนรูปเพื่อลบออก*</p>
+        <button class="btn-red" onclick="showFinal()">เสร็จเรียบร้อย!</button>
+    </div>
+
+    <div id="booth-final" class="card hidden">
+        <h2 class="bounce">บันทึกความทรงจำเรียบร้อย!</h2>
+        <p>แสกนเพื่อรับรูปภาพและวิดีโอจังหวะถ่ายนะคะ</p>
+        <div class="qr-area">
+            <div id="qrcode1"></div>
+            <div id="qrcode2"></div>
+        </div>
+        <p style="font-size: 0.9rem;">ณัฏฐ์ศศิ รัก คุณณัฐกฤตา ที่สุดในโลก ❤️</p>
+        <button class="btn-red" onclick="location.reload()">กลับหน้าแรก</button>
+    </div>
+</div>
+
+<canvas id="canvas" class="hidden" width="640" height="480"></canvas>
+
+<script>
+    let capturedPhotos = [];
+    let videoStream;
+
+    async function startCamera() {
+        document.querySelectorAll('.card').forEach(c => c.classList.add('hidden'));
+        document.getElementById('booth-capture').classList.remove('hidden');
+        document.getElementById('start-snap-btn').style.display = 'inline-block';
+        
+        if (!videoStream) {
+            videoStream = await navigator.mediaDevices.getUserMedia({ video: true });
+            document.getElementById('webcam').srcObject = videoStream;
+        }
+    }
+
+    async function takeFourShots() {
+        document.getElementById('start-snap-btn').style.display = 'none';
+        capturedPhotos = [];
+        const countdownEl = document.getElementById('countdown');
+        const infoEl = document.getElementById('shot-info');
+        
+        for (let i = 1; i <= 4; i++) {
+            for (let j = 3; j > 0; j--) {
+                infoEl.innerText = `ช็อตที่ ${i} เตรียมตัว...`;
+                countdownEl.innerText = j;
+                await new Promise(r => setTimeout(r, 1000));
+            }
+            countdownEl.innerText = "📸";
+            captureImage();
+            await new Promise(r => setTimeout(r, 500));
+            countdownEl.innerText = "";
+        }
+        showPreview();
+    }
+
+    function captureImage() {
+        const video = document.getElementById('webcam');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        ctx.save();
+        ctx.scale(-1, 1);
+        ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
+        ctx.restore();
+        capturedPhotos.push(canvas.toDataURL('image/jpeg'));
+    }
+
+    function showPreview() {
+        document.getElementById('booth-capture').classList.add('hidden');
+        document.getElementById('booth-preview').classList.remove('hidden');
+        const grid = document.getElementById('preview-grid');
+        grid.innerHTML = '';
+        capturedPhotos.forEach(src => {
+            const div = document.createElement('div');
+            div.className = 'strip-item';
+            div.innerHTML = `<img src="${src}">`;
+            grid.appendChild(div);
+        });
+    }
+
+    function goToDecorate() {
+        document.getElementById('booth-preview').classList.add('hidden');
+        document.getElementById('booth-decorate').classList.remove('hidden');
+        const grid = document.getElementById('decorate-grid');
+        grid.innerHTML = '';
+        capturedPhotos.forEach((src, index) => {
+            const div = document.createElement('div');
+            div.className = 'strip-item';
+            div.id = `slot-${index}`;
+            div.innerHTML = `<img src="${src}">`;
+            grid.appendChild(div);
+        });
+    }
+
+    function addSticker(emoji) {
+        // สุ่มวางสติกเกอร์ลงในช่องรูปภาพ
+        const randomSlot = Math.floor(Math.random() * 4);
+        const slot = document.getElementById(`slot-${randomSlot}`);
+        const span = document.createElement('span');
+        span.className = 'placed-sticker';
+        span.innerText = emoji;
+        span.style.left = Math.random() * 100 + 'px';
+        span.style.top = Math.random() * 80 + 'px';
+        span.onclick = function() { this.remove(); }; // กดที่ตัวสติกเกอร์เพื่อลบ
+        slot.appendChild(span);
+    }
+
+    function showFinal() {
+        document.getElementById('booth-decorate').classList.add('hidden');
+        document.getElementById('booth-final').classList.remove('hidden');
+        
+        new QRCode(document.getElementById("qrcode1"), { text: "PHOTO_LINK", width: 80, height: 80 });
+        new QRCode(document.getElementById("qrcode2"), { text: "VIDEO_LINK", width: 80, height: 80 });
+    }
+</script>
+
+</body>
+</html>
